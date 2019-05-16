@@ -8,11 +8,11 @@
   (let* ((kernel-name (gentemp "APPLICATION-KERNEL"))
          (variables   (loop for nil in inputs
 			    for x from 0
-                            collect (gentemp (format nil "ARG~d" x))))
+                            collect (gensym (format nil "ARG~d" x))))
 	 (outputs     (loop for nil in inputs
 			    for x from 0
-                            collect (gentemp (format nil "OUT~d" x))))
-         (output (gentemp "OUTPUT"))
+                            collect (gensym (format nil "OUT~d" x))))
+         (output (gensym "OUTPUT"))
          (program (oclcl:make-program :name "Petalisp α program"))
          (body  `((let ((pos (oclcl:to-int (oclcl:get-global-id 0))))
 		    (let* ,(loop for array-var in variables

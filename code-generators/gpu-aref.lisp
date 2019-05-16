@@ -14,7 +14,7 @@
   (let* ((indices (loop for ranges in (ranges (shape reference))
     	   	        collect (gensym "INDEX")))
  	 (index!g (gensym "ORIGINAL-INDEX"))
-         (input-sizes (loop for range in (reverse (ranges (shape reference)))
+         (input-sizes (loop for range in (ranges (shape reference))
     	 	            collect (multiple-value-bind (start step end)
 					(range-start-step-end range)
 				      (1+ (/ (- end start) step)))))
@@ -29,8 +29,8 @@
      `((,index!g ,index))
      ;; Expand n indices from single input index
      (loop with acc = 1
-	   for size in input-sizes
-	   for index in indices
+	   for size in (reverse input-sizes)
+	   for index in (reverse indices)
 	   collect `(,index (mod (/ ,index!g ,acc) ,size))
   	   do (setf acc (* acc size)))
      ;; Transform indices
@@ -43,13 +43,9 @@
      ;; aref the backing values now
      (aref-letter (first (inputs reference)) array-symbol output-symbol
 		  ;; Squish the indices to a single input
-		  (let ((parts
-			 (loop with acc = 1
-		               for transform-name in (reverse transformed!gs)
-			       for size in output-sizes
-		               collect `(* ,acc ,transform-name)
-		   	       do (setf acc (* acc size)))))
-		    (cond
-		      ((null parts) 0)
-		      ((null (cdr parts)) (car parts))
-		      (t (cons '+ parts))))))))
+		  (loop with value = 0
+		        for transform-name in transformed!gs
+		        for size in (cdr output-sizes)
+		        do (setf value `(* (+ ,value ,transform-name) ,size))
+		        finally (return `(+ ,value ,transform-name)))))))
+
