@@ -1,14 +1,16 @@
 (in-package #:oclcl-petalisp)
 
-(defun run-α-program (backend program inputs output-shape)
-  (dolist (input inputs)
-    (check-type input gpu-array))
-  (let* ((queue (create-command-queue-with-properties (context backend) (first (devices backend))))
+(defun run-program (backend program inputs output-shape
+		    &key (sizer (lambda (input) (* (shape-size (shape input))))))
+  (setf inputs
+	(loop for input in inputs
+   	      collect (etypecase input
+			(gpu-array input)
+			(reference (first (inputs input))))))
+  (let* ((queue (create-command-queue (context backend) (first (devices backend))))
          (float-size (cffi:foreign-type-size :float))
          (buffers (loop for input in inputs
-                        collect (create-buffer (context backend)
-                                               :mem-read-only
-                                               (* (shape-size (shape input)) float-size))))
+                        collect (create-buffer (context backend) :mem-read-only (* (funcall sizer input) float-size))))
          (output-buffer (create-buffer (context backend) :mem-write-only
                                        (* float-size (shape-size output-shape)))))
     (loop for input in inputs
@@ -18,8 +20,8 @@
                                         (gpu-array-backing-vector input)
                                         0 (cffi:null-pointer) (cffi:null-pointer)))
     (cffi:with-foreign-array (work-size '%ocl:size-t (list (shape-size output-shape)))
-      (let ((kernel (create-kernel (cached-α-program-program program)
-                                   (cached-α-program-entry-point program))))
+      (let ((kernel (create-kernel (cached-program-program program)
+                                   (cached-program-entry-point program))))
         (set-kernel-arg kernel 0 output-buffer '%ocl:mem)
         (loop for buffer in buffers
               for n from 1

@@ -23,7 +23,7 @@
 (defun choose-device (platform-n)
   (let* ((platform (elt (eazy-opencl.host:get-platform-ids) platform-n))
          (devices  (eazy-opencl.host:get-device-ids platform :device-type-default))
-         (context  (eazy-opencl.host:create-context devices))) 
+         (context  (eazy-opencl.host:create-context devices :context-platform platform))) 
     (make-instance 'oclcl-backend
                    :platform platform
                    :devices devices

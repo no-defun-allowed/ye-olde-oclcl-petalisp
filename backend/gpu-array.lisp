@@ -31,7 +31,12 @@
     (dotimes (x size)
       (setf (row-major-aref cl-array x)
             (cffi:mem-aref c-vector :float x)))
-    cl-array))
+    (if (null (array-dimensions cl-array))
+	(aref cl-array)
+	cl-array)))
+
+(defmethod petalisp.core:lisp-datum-from-immediate ((reference reference))
+  (lisp-datum-from-immediate (first (inputs reference))))
     
 (defmethod petalisp.core:overwrite-instance ((instance lazy-array) (replacement gpu-array))
   (change-class instance 'gpu-array

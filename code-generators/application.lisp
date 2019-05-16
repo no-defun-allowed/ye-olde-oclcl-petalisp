@@ -2,18 +2,26 @@
 
 (in-package #:oclcl-petalisp)
 
-(defun generate-α-program (function-name input-count)
+(defun generate-α-program (function-name inputs)
   (when (functionp function-name)
     (setf function-name (nth-value 2 (function-lambda-expression function-name))))
-  (let* ((kernel-name (gentemp "JIT-KERNEL"))
-         (variables   (loop for x below input-count
-                            collect (gentemp (format nil "ARG~a" x))))
+  (let* ((kernel-name (gentemp "APPLICATION-KERNEL"))
+         (variables   (loop for nil in inputs
+			    for x from 0
+                            collect (gentemp (format nil "ARG~d" x))))
+	 (outputs     (loop for nil in inputs
+			    for x from 0
+                            collect (gentemp (format nil "OUT~d" x))))
          (output (gentemp "OUTPUT"))
          (program (oclcl:make-program :name "Petalisp α program"))
-         (body  `((let ((pos (oclcl:get-global-id 0)))
-                    (set (aref ,output pos)
-                         (,function-name . ,(loop for var in variables
-                                               collect `(aref ,var pos))))))))
+         (body  `((let ((pos (oclcl:to-int (oclcl:get-global-id 0))))
+		    (let* ,(loop for array-var in variables
+			         for output-var in outputs
+			         for input in inputs
+			         appending (aref-letter input array-var output-var 'pos))
+                      (set (aref ,output pos)
+                           (,function-name . ,outputs)))))))
+    (add-stdlib program)
     (oclcl:program-define-function
      program kernel-name 'oclcl:void
      (cons (list output 'oclcl:float*)
