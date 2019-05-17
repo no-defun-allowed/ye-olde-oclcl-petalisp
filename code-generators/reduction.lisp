@@ -5,6 +5,9 @@
 (defun generate-β-program (function-name input)
   (when (functionp function-name)
     (setf function-name (nth-value 2 (function-lambda-expression function-name))))
+  (let ((rewrite-pair (assoc function-name *replace-functions*)))
+    (when rewrite-pair
+      (setf function-name (second rewrite-pair))))
   (let* ((kernel-name (gentemp "REDUCTION-KERNEL"))
 	 (input-name  (gentemp "INPUT"))
 	 (output      (gentemp "OUTPUT"))
@@ -19,7 +22,6 @@
 			 ((= step ,first-size))
 		       (set acc (,function-name (aref ,input-name (+ (* step ,size) pos)) acc)))
 		     (set (aref ,output pos) acc))))))
-    (print body)
     (add-stdlib program)
     (oclcl:program-define-function
      program kernel-name 'oclcl:void

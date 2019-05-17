@@ -47,5 +47,5 @@
 		        for transform-name in transformed!gs
 		        for size in (cdr output-sizes)
 		        do (setf value `(* (+ ,value ,transform-name) ,size))
-		        finally (return `(+ ,value ,transform-name)))))))
+		        finally (return (if transform-name `(+ ,value ,transform-name) value)))))))
 

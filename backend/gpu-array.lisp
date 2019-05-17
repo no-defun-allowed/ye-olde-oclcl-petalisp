@@ -18,6 +18,12 @@
     :initform (petalisp.type-codes:type-code-from-type-specifier 'single-float))
    (shape :initarg :shape :reader gpu-array-shape :reader shape)))
 
+(defmethod initialize-instance :after ((gpu-array gpu-array) &key)
+  (trivial-garbage:finalize gpu-array
+			    (let ((backing (gpu-array-backing-vector gpu-array)))
+			      (lambda ()
+				(cffi:foreign-free backing)))))
+
 (defun make-gpu-array (shape)
   (make-instance 'gpu-array
                  :backing-vector (cffi:foreign-alloc :float :count (shape-size shape))

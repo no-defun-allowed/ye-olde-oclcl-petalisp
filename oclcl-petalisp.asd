@@ -2,7 +2,7 @@
   :description "A OpenCL/oclcl backend for Petalisp"
   :author "Hayley Patton (no-defun-allowed)"
   :license "AGPLv3"
-  :depends-on (petalisp oclcl eazy-opencl)
+  :depends-on (petalisp oclcl eazy-opencl trivial-garbage)
   :components ((:file "package")
                (:file "device-picker")
 	       (:module backend

@@ -5,6 +5,9 @@
 (defun generate-α-program (function-name inputs)
   (when (functionp function-name)
     (setf function-name (nth-value 2 (function-lambda-expression function-name))))
+  (let ((rewrite-pair (assoc function-name *replace-functions*)))
+    (when rewrite-pair
+      (setf function-name (second rewrite-pair))))
   (let* ((kernel-name (gentemp "APPLICATION-KERNEL"))
          (variables   (loop for nil in inputs
 			    for x from 0

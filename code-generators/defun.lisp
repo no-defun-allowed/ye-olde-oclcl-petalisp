@@ -2,10 +2,23 @@
 
 (in-package #:oclcl-petalisp)
 
+(defvar *recorded-functions* (make-hash-table))
+(defstruct recorded-function arguments body)
+
+(defmacro record-defun (name arguments &body body)
+  `(progn
+     (defun ,name ,arguments ,@body)
+     (setf (gethash ',name *recorded-functions*)
+	   (make-recorded-function :arguments ',arguments :body ',body))))
+
 (defvar *already-defined-functions* '(+ - * / = < > mod oclcl:to-int do
+				      min max exp oclcl:fabs
                                       oclcl:get-global-id aref
 				      let let*
                                       oclcl:pow oclcl:to-float))
+
+(defvar *replace-functions* '((abs  oclcl:fabs)
+			      (expt oclcl:pow)))
 
 ;;; These helpers make for a really consise DSL for translating code.
 ;;; This isn't concise, but I promise the results are very nice.
@@ -83,18 +96,34 @@ expands to: (* (+ y 2) 3)"
      (cons function (mapcar #'remove-block arguments)))
     (_ value)))
 
+(defun substitute-functions (body)
+  (loop for (old new) in *replace-functions*
+        do (setf body (substitute-name new old body)))
+  body)
+
 ;;; Here is the actual translator.
+
+(defun add-function (function program)
+  (unless (member function *already-defined-functions*)
+    (let ((replace-pair (assoc function *replace-functions*)))
+      (if replace-pair
+	  (add-function (second replace-pair) program)
+	  (let ((code (function-lambda-expression (symbol-function function))))
+            (if (null code)
+		(let ((recorded-function (gethash function *recorded-functions*)))
+		  (if recorded-function
+		      (generate-defun program function
+				      (recorded-function-arguments recorded-function)
+				      (recorded-function-body recorded-function))
+		      (error "can't find definition for ~s" function)))
+		(destructuring-bind (λ args &body body) code
+                  (assert (eql λ 'lambda))
+                  (generate-defun program function args body))))))))
 
 (defun resolve-functions (program body)
   "Find every unbound function in BODY and try to compile them into PROGRAM."
   (loop for function in (identify-unbound-functions program body)
-        do (let ((code (function-lambda-expression (symbol-function function))))
-             (if (null code)
-                 (error "can't find definition for ~s" function)
-                 (destructuring-bind (λ args &body body) code
-                   (assert (eql λ 'lambda))
-                   (generate-defun program function args body))))))
-
+        do (add-function function program)))
 
 (defun generate-defun (program function-name arguments body)
   "Translate a function from a subset of CL to OCLCL"
@@ -108,9 +137,9 @@ expands to: (* (+ y 2) 3)"
                      (stuff-return-in-body body)
                      ; Coerce all integers to floats
                      (funcall-if #'integerp #'float body)
-                     ; Rename EXPT and SETF
-                     (substitute-name 'oclcl:pow 'expt body)
-                     (substitute-name 'set       'setf body)))))
+                     ; Rename some functions and SETF
+                     (substitute-functions body)
+                     (substitute-name 'set 'setf body)))))
     (oclcl:program-define-function program function-name
                                    'oclcl:float
                                    (loop for arg in arguments
